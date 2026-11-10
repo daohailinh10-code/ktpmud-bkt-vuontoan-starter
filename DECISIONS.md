@@ -1,11 +1,6 @@
 # DECISIONS.md
 # VƯỜN TOÁN LỚP 3 – ƯỚC LƯỢNG TRƯỚC KHI TÍNH ĐÚNG
 
-**Phiên bản:** 2.1  
-**Trạng thái:** Đề xuất thiết kế – Checkpoint 1  
-**Ngày cập nhật:** 10/11/2026  
-**Phạm vi:** Bổ sung dạng câu hỏi ước lượng kết hợp tính toán chính xác.
-
 ---
 
 ## 1. Mục đích
