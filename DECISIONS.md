@@ -1,315 +1,640 @@
 # DECISIONS.md
+# VƯỜN TOÁN LỚP 3 – ƯỚC LƯỢNG TRƯỚC KHI TÍNH ĐÚNG
 
-# TÀI LIỆU QUYẾT ĐỊNH THIẾT KẾ
-## Dự án: Vườn Toán Lớp 3 – Ước lượng trước khi tính đúng
-
-**Phiên bản:** 1.0  
-**Trạng thái:** Draft – cần đối chiếu với `docs/architecture-reference.md` trước khi triển khai  
-**Phạm vi:** Track B – Vườn Toán Lớp 3
+**Phiên bản:** 2.1  
+**Trạng thái:** Đề xuất thiết kế – Checkpoint 1  
+**Ngày cập nhật:** 10/11/2026  
+**Phạm vi:** Bổ sung dạng câu hỏi ước lượng kết hợp tính toán chính xác.
 
 ---
 
-## 1. Mục đích tài liệu
+## 1. Mục đích
 
-Tài liệu này ghi lại các quyết định thiết kế quan trọng trong quá trình phát triển tính năng **“Ước lượng trước khi tính đúng”** cho hệ thống Vườn Toán Lớp 3.
+Tài liệu này trình bày các quyết định kiến trúc và thiết kế của nhóm khi mở rộng hệ thống Vườn Toán Lớp 3 nhằm hỗ trợ dạng bài tập “Ước lượng trước khi tính đúng”.
 
-Mục đích của tính năng là giúp học sinh hình thành khả năng ước lượng kết quả của phép nhân và phép chia trước khi thực hiện phép tính chính xác. Thay vì chỉ yêu cầu học sinh nhập đáp án đúng, hệ thống sẽ yêu cầu học sinh đưa ra một giá trị ước lượng hoặc một khoảng giá trị hợp lý, sau đó mới thực hiện phép tính chính xác.
+Các quyết định tập trung vào việc bổ sung loại câu hỏi mới, tổ chức dữ liệu đáp án, xây dựng quy tắc xác định khoảng ước lượng hợp lệ, điều chỉnh cơ chế chấm điểm và xác định những thành phần cần thay đổi trong hệ thống.
 
-Các quyết định được đưa ra nhằm bảo đảm tính năng:
-- Phù hợp với luồng học tập hiện có của hệ thống.
-- Có quy tắc tạo câu hỏi và chấm điểm rõ ràng, nhất quán.
-- Không tiết lộ đáp án chính xác trước khi học sinh gửi bài.
-- Lưu được kết quả học tập và duy trì dữ liệu sau khi tải lại trang.
-- Có thể kiểm thử tự động, dễ bảo trì và không ảnh hưởng đến chức năng hiện có.
+Việc thiết kế phải bảo đảm ba nguyên tắc:
 
-Tài liệu này cần được sử dụng cùng với `REQUIREMENTS.md`, `TEST_PLAN.md` và tài liệu kiến trúc `docs/architecture-reference.md`.
+- Không làm thay đổi hành vi của bốn loại câu hỏi hiện có.
+- Tận dụng kiến trúc và cấu trúc cơ sở dữ liệu hiện tại khi phù hợp.
+- Bảo đảm quy tắc ước lượng và chấm điểm có tính xác định, nhất quán và kiểm thử được.
 
-## 2. Nguyên tắc ra quyết định
+## 2. Bối cảnh và kiến trúc hệ thống hiện tại
 
-Nhóm sử dụng các nguyên tắc sau khi lựa chọn giải pháp:
+### 2.1. Kiến trúc tổng quan
 
-1. **Ưu tiên tích hợp:** Tính năng mới phải được tích hợp vào luồng học tập hiện có, không xây dựng thành một ứng dụng hoặc trang demo độc lập.
-2. **Đơn giản và phù hợp lứa tuổi:** Giao diện, nội dung câu hỏi và cách phản hồi cần dễ hiểu đối với học sinh lớp 3.
-3. **Tính xác định:** Cùng một dữ liệu đầu vào và cùng một quy tắc chấm điểm phải tạo ra cùng một kết quả.
-4. **Xử lý phía máy chủ:** Máy chủ chịu trách nhiệm kiểm tra dữ liệu, tính điểm và lưu kết quả.
-5. **Bảo vệ đáp án:** Không gửi đáp án chính xác về trình duyệt trước khi học sinh hoàn thành và gửi câu trả lời.
-6. **Bảo vệ dữ liệu:** Chỉ sử dụng dữ liệu giả lập, không thu thập thông tin cá nhân thật của học sinh.
-7. **Không phá vỡ hệ thống:** Không chỉnh sửa `server/auth.js`, cơ chế session, tài khoản mẫu hoặc cấu hình triển khai hiện có.
+Theo tài liệu `docs/architecture-reference.md`, hệ thống hiện tại sử dụng:
 
-## 3. Danh sách quyết định thiết kế
+- Backend: Node.js và Express.
+- Cơ sở dữ liệu: SQLite thông qua thư viện `better-sqlite3`.
+- Frontend: HTML, CSS và JavaScript thuần.
+- Giao tiếp: Frontend sử dụng `fetch()` để gọi các REST API.
+- Truy vấn dữ liệu: SQL trực tiếp, không sử dụng ORM.
 
-### DEC-01: Tích hợp tính năng vào luồng học tập hiện có
+Luồng xử lý luyện tập và chấm điểm:
 
-**Bối cảnh:**
+```text
+public/*.html
+      |
+      v
+public/assets/js/pages/exercise.js
+      |
+      | fetch('/api/...')
+      v
+server/api.js
+      |
+      v
+server/db.js
+      |
+      v
+SQLite Database
+```
 
-Đề bài yêu cầu tính năng ước lượng phải xuất hiện trong luồng học tập hiện tại của Vườn Toán Lớp 3. Nếu xây dựng một trang riêng không liên kết với hệ thống, tính năng sẽ không đáp ứng yêu cầu tích hợp.
+### 2.2. Cấu trúc dữ liệu hiện tại
+
+Các bảng liên quan đến chức năng luyện tập gồm:
+
+**Bảng `questions`:**
+
+| Trường | Kiểu dữ liệu | Vai trò |
+|---|---|---|
+| `id` | TEXT | Mã câu hỏi |
+| `set_id` | TEXT | Mã bộ câu hỏi |
+| `lesson_id` | TEXT | Mã bài học |
+| `type` | TEXT | Loại câu hỏi |
+| `prompt` | TEXT | Nội dung câu hỏi |
+| `options_json` | TEXT | Các lựa chọn của câu hỏi trắc nghiệm |
+| `correct_answer` | TEXT NOT NULL | Đáp án chuẩn |
+| `points` | INTEGER | Điểm tối đa |
+| `category` | TEXT | Phân loại câu hỏi |
+| `sort_order` | INTEGER | Thứ tự hiển thị |
+
+**Bảng `attempts`:** Lưu kết quả mỗi lần làm bài, bao gồm điểm phần trăm, số câu đúng, tổng số câu, số sao đạt được, thời gian làm bài và câu trả lời.
+
+**Bảng `progress`:** Lưu điểm cao nhất và trạng thái hoàn thành của người học đối với từng bài học.
+
+### 2.3. Cơ chế câu hỏi và chấm điểm hiện tại
+
+Hệ thống đang hỗ trợ bốn loại câu hỏi:
+
+| Loại câu hỏi | Ý nghĩa | Dữ liệu đáp án |
+|---|---|---|
+| `multiple-choice` | Trắc nghiệm | Chuỗi đáp án |
+| `input` | Điền số | Chuỗi số |
+| `compare` | So sánh | `=`, `<` hoặc `>` |
+| `paint` | Tô màu | Tên màu |
+
+Trong API `POST /api/submissions`, hệ thống hiện chuyển câu trả lời thành chuỗi, chuẩn hóa bằng `trim()` và `toLowerCase()`, sau đó so sánh chính xác với `correct_answer`.
+
+Cơ chế này không hỗ trợ việc kiểm tra một giá trị nằm trong khoảng cho phép hoặc chấm điểm riêng cho nhiều thành phần trong cùng một câu hỏi.
+
+Do đó, việc bổ sung dạng bài ước lượng cần có một loại câu hỏi và nhánh xử lý riêng.
+
+---
+
+## 3. Các quyết định thiết kế
+
+### ADR-01. Bổ sung loại câu hỏi `estimate`
+
+**Trạng thái:** Accepted
+
+**Vấn đề:**
+
+Các loại câu hỏi hiện tại chưa đáp ứng yêu cầu đánh giá đồng thời khả năng ước lượng và tính toán chính xác. Việc sử dụng lại loại `input` sẽ khiến hệ thống khó phân biệt hai thành phần trả lời và áp dụng quy tắc chấm điểm riêng.
+
+**Các phương án xem xét:**
+
+- Phương án 1: Sử dụng lại `input`, bổ sung quy ước đặc biệt trong nội dung câu hỏi.
+- Phương án 2: Thêm loại câu hỏi mới `estimate`.
+- Phương án 3: Tạo một hệ thống câu hỏi riêng bên ngoài mô hình `questions` hiện có.
 
 **Quyết định:**
 
-Nhóm lựa chọn tích hợp bài tập ước lượng vào giao diện và luồng điều hướng học tập hiện có. Học sinh có thể truy cập bài tập từ khu vực học tập phù hợp mà không cần tạo một hệ thống đăng nhập hoặc ứng dụng mới.
+Chọn phương án 2: Bổ sung giá trị `estimate` vào trường `type` của bảng `questions`.
+
+Dạng câu hỏi `estimate` gồm hai thành phần:
+
+1. Ước lượng: Học sinh nhập một giá trị gần với kết quả chính xác.
+2. Tính chính xác: Học sinh thực hiện phép tính và nhập kết quả chính xác.
+
+Ví dụ:
+
+- Phép tính: \(12\times4\).
+- Kết quả chính xác: 48.
+- Khoảng ước lượng hợp lệ: từ 44 đến 52.
 
 **Lý do lựa chọn:**
-- Đáp ứng tiêu chí B-01.
-- Giữ trải nghiệm sử dụng thống nhất.
-- Hạn chế việc tạo thêm các thành phần trùng lặp.
-- Giảm ảnh hưởng đến các chức năng sẵn có.
+
+- Phân biệt rõ dạng bài mới với các dạng câu hỏi hiện có.
+- Cho phép API nhận diện và áp dụng cơ chế chấm điểm riêng.
+- Không cần thay đổi ý nghĩa của các loại câu hỏi cũ.
+- Thuận tiện mở rộng thêm các dạng bài đánh giá nhiều thành phần trong tương lai.
 
 **Ảnh hưởng:**
 
-Cần kiểm tra cấu trúc giao diện và cách điều hướng hiện tại trong tài liệu kiến trúc trước khi xác định chính xác vị trí tích hợp.
+Cần bổ sung khả năng nhận diện `estimate` trong frontend và backend. Các loại `multiple-choice`, `input`, `compare`, `paint` tiếp tục sử dụng cơ chế hiện tại.
 
-**Yêu cầu liên quan:** B-01.
+### ADR-02. Lưu khoảng chấp nhận trong trường `correct_answer`
 
-### DEC-02: Sử dụng bộ câu hỏi giả lập có thể tái lập
+**Trạng thái:** Accepted
 
-**Bối cảnh:**
+**Vấn đề:**
 
-Đề bài yêu cầu có tối thiểu 12 bộ dữ liệu/câu hỏi giả lập có thể tái lập để phục vụ kiểm thử và trình diễn. Việc tạo câu hỏi hoàn toàn ngẫu nhiên có thể gây khó khăn khi so sánh kết quả giữa các lần kiểm thử.
+Câu hỏi ước lượng cần lưu ba thông tin: giới hạn dưới, giới hạn trên và đáp án chính xác. Cấu trúc bảng `questions` hiện tại chỉ có trường `correct_answer` để lưu đáp án chuẩn.
+
+**Các phương án xem xét:**
+
+- Phương án 1: Thêm hai cột `lower_bound` và `upper_bound` vào bảng `questions`.
+- Phương án 2: Tạo bảng mới để lưu khoảng ước lượng.
+- Phương án 3: Mã hóa các thông tin cần thiết dưới dạng JSON trong trường `correct_answer` hiện có.
 
 **Quyết định:**
 
-Nhóm sử dụng một bộ dữ liệu câu hỏi được xác định trước, có mã định danh và thông tin đầu vào rõ ràng. Bộ dữ liệu bao gồm các bài toán nhân và chia phù hợp với phạm vi kiến thức lớp 3.
+Chọn phương án 3: Sử dụng trường `correct_answer` kiểu `TEXT NOT NULL` để lưu đối tượng JSON đối với câu hỏi có `type = estimate`.
 
-Mỗi câu hỏi cần có các thông tin phục vụ việc tạo bài tập và chấm điểm, chẳng hạn:
-- Mã câu hỏi.
-- Phép tính hoặc dữ liệu đầu vào.
-- Phép toán cần thực hiện.
-- Giá trị hoặc khoảng ước lượng được chấp nhận.
-- Đáp án chính xác dùng cho bước kiểm tra kết quả.
-- Thông tin giải thích hoặc phản hồi sau khi nộp bài.
+Cấu trúc dữ liệu:
+
+```json
+{
+  "lower": 44,
+  "upper": 52,
+  "exact": 48
+}
+```
+
+Ý nghĩa:
+
+- `lower`: Giới hạn dưới của khoảng ước lượng hợp lệ.
+- `upper`: Giới hạn trên của khoảng ước lượng hợp lệ.
+- `exact`: Đáp án chính xác của phép tính.
+
+Đối với bốn loại câu hỏi hiện tại, định dạng `correct_answer` không thay đổi.
 
 **Lý do lựa chọn:**
-- Đáp ứng yêu cầu tối thiểu 12 câu hỏi.
-- Kết quả kiểm thử có thể lặp lại.
-- Dễ kiểm tra các trường hợp thông thường và trường hợp biên.
-- Hạn chế tình trạng dữ liệu thay đổi khiến kết quả kiểm thử không ổn định.
+
+- Không cần thay đổi schema SQLite.
+- Không phát sinh bảng hoặc cột mới.
+- Giảm tác động đến các chức năng hiện có.
+- Có thể lưu đầy đủ thông tin cần thiết cho việc chấm điểm.
 
 **Ảnh hưởng:**
 
-Bộ câu hỏi phải được quản lý tập trung để tránh việc quy tắc chấm điểm ở giao diện và máy chủ không thống nhất.
+Backend phải phân tích JSON trong `correct_answer` khi xử lý câu hỏi `estimate`. Không được áp dụng phép so sánh chuỗi chính xác hiện tại cho loại câu hỏi này.
 
-**Yêu cầu liên quan:** B-02, B-03, B-08.
+### ADR-03. Sử dụng sai số tương đối 10% để xác định khoảng ước lượng
 
-### DEC-03: Sử dụng quy tắc ước lượng và chấm điểm xác định
+**Trạng thái:** Accepted
 
-**Bối cảnh:**
+**Vấn đề:**
 
-Học sinh cần ước lượng kết quả trước khi thực hiện phép tính chính xác. Nếu không có quy tắc đánh giá cụ thể, hệ thống có thể đưa ra kết quả không nhất quán.
+Hệ thống cần một quy tắc xác định rõ giá trị ước lượng nào được chấp nhận. Nếu chỉ sử dụng khái niệm “gần đúng” mà không quy định giới hạn, kết quả chấm điểm sẽ không nhất quán và khó kiểm thử.
 
 **Quyết định:**
 
-Nhóm lựa chọn phương pháp chấm điểm dựa trên các quy tắc toán học được xác định trước, không sử dụng mô hình ngôn ngữ lớn (LLM) để đánh giá câu trả lời.
+Nhóm lựa chọn sai số tương đối 10% so với kết quả chính xác để xác định khoảng ước lượng hợp lệ.
 
-Hệ thống phân biệt hai nội dung:
-- **Đánh giá ước lượng:** Xác định câu trả lời ước lượng có nằm trong khoảng giá trị hợp lý đã được quy định hay không.
-- **Đánh giá phép tính chính xác:** Xác định kết quả tính chính xác của học sinh có trùng với đáp án đúng hay không.
+Gọi:
 
-Một câu trả lời có thể có ước lượng hợp lý nhưng kết quả tính chính xác chưa đúng. Vì vậy, hệ thống cần phản hồi riêng cho từng phần thay vì gộp thành một kết quả đúng/sai duy nhất.
+- \(R\): Kết quả chính xác.
+- \(L\): Giới hạn dưới.
+- \(U\): Giới hạn trên.
+- \(E\): Giá trị ước lượng do học sinh nhập.
 
-**Quy tắc cơ bản:**
-
-Với một phép tính có kết quả chính xác là \(R\), nhóm xác định một khoảng ước lượng hợp lý:
+Công thức:
 
 \[
-[L,U]
+L=\lceil0.9R\rceil
 \]
-
-Trong đó:
-- \(L\): Cận dưới của khoảng ước lượng.
-- \(U\): Cận trên của khoảng ước lượng.
-- \(R\): Kết quả chính xác của phép tính.
-
-Câu trả lời ước lượng \(E\) được chấp nhận khi:
 
 \[
-L \leq E \leq U
+U=\lfloor1.1R\rfloor
 \]
 
-Câu trả lời chính xác \(A\) được chấp nhận khi:
+Giá trị ước lượng được chấp nhận khi:
 
 \[
-A=R
+L\leq E\leq U
 \]
 
-Các giá trị \(L\), \(U\) và \(R\) được xác định từ dữ liệu câu hỏi và quy tắc tạo bài tập. Nhóm cần kiểm tra để bảo đảm khoảng ước lượng thực sự phù hợp với từng phép tính, không quá rộng khiến mọi câu trả lời đều được chấp nhận.
+Trong đó, \(\lceil x\rceil\) là phép làm tròn lên và \(\lfloor x\rfloor\) là phép làm tròn xuống.
+
+**Ví dụ 1: Phép nhân**
+
+Với:
+
+\[
+12\times4=48
+\]
+
+Ta có:
+
+\[
+L=\lceil48\times0.9\rceil=44
+\]
+
+\[
+U=\lfloor48\times1.1\rfloor=52
+\]
+
+Vậy khoảng ước lượng hợp lệ là:
+
+\[
+44\leq E\leq52
+\]
+
+Các giá trị 44, 48 và 52 đều được chấp nhận. Giá trị 43 và 53 không được chấp nhận.
+
+**Ví dụ 2: Phép chia**
+
+Với:
+
+\[
+84\div4=21
+\]
+
+Ta có:
+
+\[
+L=\lceil21\times0.9\rceil=19
+\]
+
+\[
+U=\lfloor21\times1.1\rfloor=23
+\]
+
+Vậy khoảng ước lượng hợp lệ là:
+
+\[
+19\leq E\leq23
+\]
+
+**Phạm vi áp dụng:**
+
+- Phép nhân có kết quả nguyên không âm.
+- Phép chia có số chia khác 0 và kết quả nguyên không âm.
+- Giá trị ước lượng và đáp án chính xác được xử lý dưới dạng số nguyên không âm.
+- Hai giới hạn được tính bằng phép làm tròn đã quy định, không phụ thuộc vào cách làm tròn mặc định của giao diện.
 
 **Lý do lựa chọn:**
-- Kết quả có thể dự đoán và kiểm thử.
-- Không phụ thuộc vào dịch vụ AI bên ngoài.
-- Dễ giải thích cho học sinh và ban giám khảo.
-- Phân biệt được năng lực ước lượng và năng lực tính toán chính xác.
 
-**Ảnh hưởng:**
+- Quy tắc rõ ràng và tất định.
+- Dễ giải thích và phù hợp với mục tiêu rèn luyện tư duy ước lượng.
+- Áp dụng thống nhất cho phép nhân và phép chia.
+- Dễ xây dựng các trường hợp kiểm thử giá trị biên.
 
-Quy tắc chấm điểm phải được triển khai thống nhất ở phía máy chủ. Phía giao diện chỉ hiển thị câu hỏi, nhận dữ liệu và trình bày phản hồi.
+### ADR-04. Chia điểm thành hai thành phần độc lập
 
-**Yêu cầu liên quan:** B-03, B-06, B-08.
+**Trạng thái:** Accepted
 
-### DEC-04: Không cung cấp đáp án chính xác trước khi học sinh nộp bài
+**Vấn đề:**
 
-**Bối cảnh:**
-
-Nếu API gửi đáp án chính xác về trình duyệt ngay khi tải câu hỏi, học sinh có thể xem được đáp án trước khi hoàn thành bài tập thông qua dữ liệu mạng hoặc mã nguồn phía trình duyệt.
+Nếu chỉ chấm kết quả tính toán chính xác, hệ thống không ghi nhận được khả năng ước lượng của học sinh. Ngược lại, nếu chỉ chấm kết quả ước lượng, hệ thống không đánh giá được khả năng thực hiện phép tính.
 
 **Quyết định:**
 
-Nhóm lựa chọn tách dữ liệu hiển thị câu hỏi khỏi dữ liệu dùng để chấm điểm.
+Mỗi câu hỏi `estimate` được chia thành hai phần điểm bằng nhau:
 
-Trước khi học sinh gửi câu trả lời, API chỉ trả về các thông tin cần thiết để hiển thị câu hỏi và hướng dẫn làm bài. Đáp án chính xác và dữ liệu nội bộ phục vụ chấm điểm không được đưa vào phản hồi này.
+| Thành phần | Tỷ trọng |
+|---|---:|
+| Ước lượng đúng | 50% |
+| Tính toán chính xác đúng | 50% |
+| Tổng | 100% |
 
-Sau khi học sinh gửi câu trả lời, máy chủ mới thực hiện kiểm tra và trả về kết quả cùng phản hồi phù hợp.
+Gọi \(P\) là điểm tối đa của câu hỏi, \(E\) là giá trị ước lượng và \(A\) là kết quả tính toán chính xác học sinh nhập.
+
+Điểm thành phần ước lượng:
+
+\[
+C_E=
+\begin{cases}
+0.5P & \text{nếu }L\leq E\leq U\\
+0 & \text{nếu ngược lại}
+\end{cases}
+\]
+
+Điểm thành phần tính chính xác:
+
+\[
+C_X=
+\begin{cases}
+0.5P & \text{nếu }A=R\\
+0 & \text{nếu ngược lại}
+\end{cases}
+\]
+
+Tổng điểm câu hỏi:
+
+\[
+C=C_E+C_X
+\]
+
+**Bảng các trường hợp chấm điểm:**
+
+| Ước lượng | Tính chính xác | Điểm đạt được |
+|---|---|---:|
+| Đúng | Đúng | 100% |
+| Đúng | Sai | 50% |
+| Sai | Đúng | 50% |
+| Sai | Sai | 0% |
+
+**Quy ước thống kê:**
+
+- `correct_count` chỉ tăng khi học sinh trả lời đúng cả hai thành phần.
+- `total_count` vẫn tính mỗi câu hỏi `estimate` là một câu hỏi.
+- Điểm thành phần được cộng vào tổng điểm thực tế.
+- Điểm phần trăm được tính theo tổng điểm đạt được chia cho tổng điểm tối đa của bộ câu hỏi, sau đó làm tròn theo quy tắc hệ thống.
 
 **Lý do lựa chọn:**
-- Bảo đảm tính công bằng của bài tập.
-- Hạn chế việc học sinh lấy đáp án từ dữ liệu trả về của API.
-- Đáp ứng yêu cầu bảo vệ đáp án của đề bài.
 
-**Ảnh hưởng:**
+- Đánh giá được hai kỹ năng riêng biệt.
+- Khuyến khích học sinh suy nghĩ và ước lượng trước khi tính.
+- Không loại bỏ hoàn toàn điểm số khi học sinh chỉ sai một trong hai phần.
 
-Cần kiểm tra cả nội dung phản hồi API, không chỉ kiểm tra giao diện có ẩn đáp án hay không.
+### ADR-05. Bổ sung nhánh xử lý `estimate` trong API `POST /api/submissions`
 
-**Yêu cầu liên quan:** B-04, B-08.
+**Trạng thái:** Accepted
 
-### DEC-05: Máy chủ chịu trách nhiệm chấm điểm và lưu kết quả
+**Vấn đề:**
 
-**Bối cảnh:**
+API hiện tại sử dụng phép so sánh chuỗi chính xác:
 
-Nếu chỉ lưu kết quả ở trình duyệt, dữ liệu có thể bị mất khi tải lại trang hoặc thay đổi thiết bị. Ngoài ra, việc chấm điểm hoàn toàn ở phía giao diện có thể khiến kết quả dễ bị thay đổi.
+```js
+const given = answers[q.id] == null
+  ? ''
+  : String(answers[q.id]).trim().toLowerCase();
+
+const ok = given === String(q.correct_answer).trim().toLowerCase();
+```
+
+Cách xử lý này không thể chấm một giá trị nằm trong khoảng hoặc đánh giá hai thành phần trả lời độc lập.
 
 **Quyết định:**
 
-Nhóm lựa chọn để máy chủ thực hiện việc kiểm tra câu trả lời, tính kết quả và lưu trạng thái bài làm vào cơ sở dữ liệu hiện có của hệ thống.
+Bổ sung nhánh xử lý riêng cho `q.type === 'estimate'` trong route `POST /api/submissions` thuộc `server/api.js`.
 
-Khi học sinh hoàn thành bài tập:
-1. Trình duyệt gửi câu trả lời đến máy chủ.
-2. Máy chủ kiểm tra tính hợp lệ của dữ liệu.
-3. Máy chủ đối chiếu câu trả lời với quy tắc chấm điểm.
-4. Máy chủ lưu kết quả.
-5. Máy chủ trả về phản hồi để giao diện hiển thị.
+Cấu trúc dữ liệu gửi từ frontend:
 
-Khi người dùng tải lại trang, hệ thống cần có khả năng truy xuất trạng thái đã lưu theo cơ chế dữ liệu và nhận diện người dùng hiện có của dự án.
+```json
+{
+  "setId": "estimate-set-01",
+  "answers": {
+    "estimate-01": {
+      "estimate": 48,
+      "exact": 48
+    }
+  },
+  "durationSec": 60
+}
+```
 
-**Lý do lựa chọn:**
-- Đáp ứng yêu cầu lưu kết quả phía máy chủ.
-- Bảo đảm tính nhất quán của kết quả.
-- Hạn chế mất dữ liệu khi tải lại trang.
-- Tạo cơ sở để mở rộng thống kê kết quả học tập sau này.
+Backend thực hiện các bước:
 
-**Ảnh hưởng:**
+1. Lấy danh sách câu hỏi thuộc bộ đề.
+2. Kiểm tra trường `type` của từng câu hỏi.
+3. Nếu `type` là `estimate`, phân tích JSON trong `correct_answer`.
+4. Kiểm tra hai giá trị đầu vào `estimate` và `exact` là số nguyên không âm hợp lệ.
+5. So sánh `estimate` với khoảng `[lower, upper]`.
+6. So sánh `exact` với đáp án chính xác được lưu trong `correct_answer`.
+7. Tính điểm riêng cho hai thành phần theo tỷ lệ 50/50.
+8. Cập nhật tổng điểm, số câu đúng hoàn toàn và tổng số câu.
+9. Lưu câu trả lời và kết quả vào `attempts`.
+10. Tiếp tục sử dụng cơ chế cập nhật `progress` và cộng sao hiện có.
 
-Cấu trúc lưu trữ và cách liên kết kết quả với người dùng phải tuân theo kiến trúc hiện có. Không tự ý thay đổi hệ thống xác thực hoặc session.
+Đối với các loại câu hỏi còn lại, API tiếp tục sử dụng cơ chế so sánh chuỗi chính xác hiện tại.
 
-**Yêu cầu liên quan:** B-05, B-07.
+**Nguyên tắc tương thích:**
 
-### DEC-06: Sử dụng kiến trúc và công nghệ hiện có của dự án
+Không thay thế hoặc làm thay đổi nhánh chấm điểm của `multiple-choice`, `input`, `compare` và `paint`.
 
-**Bối cảnh:**
+### ADR-06. Lưu câu trả lời trong `attempts.answers_json`
 
-Tính năng mới cần được phát triển trong starter repository của cuộc thi. Việc thay đổi công nghệ hoặc xây dựng lại toàn bộ kiến trúc sẽ làm tăng thời gian triển khai và rủi ro ảnh hưởng đến hệ thống.
+**Trạng thái:** Accepted
 
-**Quyết định:**
+**Vấn đề:**
 
-Nhóm tiếp tục sử dụng các công nghệ được yêu cầu trong đề bài:
-- Node.js phiên bản 18 trở lên.
-- Express cho phía máy chủ.
-- SQLite cho lưu trữ dữ liệu.
-- JavaScript, HTML và CSS cho phần giao diện.
-
-Nhóm ưu tiên tái sử dụng cấu trúc thư mục, quy ước API, cách truy cập cơ sở dữ liệu và các thành phần giao diện hiện có.
-
-**Lý do lựa chọn:**
-- Phù hợp với starter repository.
-- Hạn chế cài đặt thêm công nghệ không cần thiết.
-- Dễ tích hợp và kiểm thử.
-- Giảm rủi ro ảnh hưởng đến các chức năng khác.
-
-**Ảnh hưởng:**
-
-Tên bảng, cấu trúc dữ liệu, endpoint và cách tổ chức module phải được xác định sau khi đọc `docs/architecture-reference.md`, không được tự ý tạo ra cấu trúc xung đột với hệ thống hiện có.
-
-**Yêu cầu liên quan:** B-01, B-05, B-09.
-
-### DEC-07: Bảo vệ hệ thống xác thực và dữ liệu người dùng
-
-**Bối cảnh:**
-
-Tính năng mới cần hoạt động cùng hệ thống hiện có nhưng không được làm thay đổi cơ chế xác thực, session hoặc tài khoản mẫu.
+Câu hỏi `estimate` có hai thành phần trả lời. Hệ thống cần lưu được cả hai để phục vụ việc xem lại kết quả và thống kê.
 
 **Quyết định:**
 
-Nhóm không chỉnh sửa:
+Tiếp tục sử dụng trường `answers_json` trong bảng `attempts` để lưu câu trả lời.
+
+Ví dụ:
+
+```json
+{
+  "estimate-01": {
+    "estimate": 48,
+    "exact": 48
+  }
+}
+```
+
+Dữ liệu lưu phải thể hiện được cả giá trị ước lượng và giá trị tính toán chính xác. Việc lưu thêm trạng thái đúng/sai của từng thành phần có thể được thực hiện trong cấu trúc chi tiết nếu cần phục vụ chức năng xem lại bài.
+
+**Lý do lựa chọn:**
+
+- Tận dụng cấu trúc bảng `attempts` hiện tại.
+- Không cần bổ sung bảng mới.
+- Lưu được đầy đủ hai thành phần trả lời.
+- Hỗ trợ kiểm tra và thống kê kết quả làm bài.
+
+### ADR-07. Giữ nguyên cơ chế cập nhật tiến độ và tính sao
+
+**Trạng thái:** Accepted
+
+**Vấn đề:**
+
+Việc bổ sung dạng bài mới có thể ảnh hưởng đến cách tính điểm, số câu đúng, tiến độ và sao thưởng nếu không thống nhất với cơ chế hiện tại.
+
+**Quyết định:**
+
+Giữ nguyên cơ chế cập nhật `progress` và tính sao đang có trong `server/api.js`.
+
+Dạng `estimate` chỉ thay đổi cách xác định điểm của từng câu hỏi. Sau khi tính được tổng điểm, kết quả vẫn đi qua luồng lưu kết quả, cập nhật tiến độ và cộng sao hiện tại.
+
+Các nguyên tắc cần bảo toàn:
+
+- `best_score` tiếp tục lưu điểm cao nhất theo cơ chế hiện có.
+- `completed` tiếp tục được xác định theo ngưỡng hoàn thành hiện có.
+- Số sao tiếp tục được tính theo quy tắc thưởng hiện tại.
+- Không tạo cơ chế tiến độ hoặc tính sao riêng cho dạng `estimate`.
+
+**Lý do lựa chọn:**
+
+- Bảo đảm tính nhất quán giữa các dạng bài.
+- Tránh ảnh hưởng dữ liệu tiến độ đã có.
+- Giảm nguy cơ phát sinh lỗi ngoài phạm vi yêu cầu.
+
+### ADR-08. Cập nhật giao diện trong `exercise.js`
+
+**Trạng thái:** Accepted
+
+**Vấn đề:**
+
+File `public/assets/js/pages/exercise.js` hiện dựng giao diện câu hỏi dựa trên trường `type`, thu thập câu trả lời và gửi dữ liệu đến API `POST /api/submissions`.
+
+Giao diện hiện tại chưa có thành phần nhập liệu dành riêng cho câu hỏi ước lượng.
+
+**Quyết định:**
+
+Cập nhật file:
+
+`public/assets/js/pages/exercise.js`
+
+Bổ sung nhánh hiển thị dành cho `type === 'estimate'`.
+
+Giao diện cần có:
+
+1. Nội dung phép tính.
+2. Ô nhập kết quả ước lượng.
+3. Ô nhập kết quả tính toán chính xác.
+4. Nhãn hướng dẫn rõ ràng cho từng ô nhập.
+5. Kiểm tra dữ liệu nhập trước khi gửi bài.
+
+Khi học sinh nộp bài, frontend gửi dữ liệu theo cấu trúc:
+
+```json
+{
+  "estimate-01": {
+    "estimate": 48,
+    "exact": 48
+  }
+}
+```
+
+Dữ liệu này được đặt trong trường `answers` của request gửi đến `POST /api/submissions`.
+
+**Nguyên tắc giao diện:**
+
+- Thiết kế đơn giản, dễ sử dụng với học sinh lớp 3.
+- Hai ô nhập liệu phải phân biệt rõ ràng.
+- Không hiển thị giới hạn `lower`, `upper` hoặc đáp án `exact` trước khi nộp bài.
+- Không để frontend tự quyết định kết quả đúng/sai.
+- Backend là nơi thực hiện chấm điểm cuối cùng.
+- Không làm thay đổi cách hiển thị của các dạng câu hỏi cũ.
+
+### ADR-09. Không thay đổi các chức năng xác thực và quản trị
+
+**Trạng thái:** Accepted
+
+**Quyết định:**
+
+Không chỉnh sửa:
+
 - `server/auth.js`.
-- Cơ chế session hiện tại.
-- Tài khoản mẫu.
-- Cấu hình triển khai hiện có.
+- Các route `/api/auth/*`.
+- Các route `/api/teacher/*`.
+- Các route `/api/admin/*`.
 
-Đối với dữ liệu kiểm thử và trình diễn, nhóm chỉ sử dụng dữ liệu giả lập và tên đại diện tổng hợp. Không đưa thông tin cá nhân thật của học sinh, giáo viên hoặc người dùng vào mã nguồn, dữ liệu mẫu hay báo cáo.
-
-**Lý do lựa chọn:**
-- Hạn chế nguy cơ phát sinh lỗi xác thực.
-- Bảo vệ dữ liệu người dùng.
-- Đáp ứng yêu cầu bảo mật và quyền riêng tư của cuộc thi.
-
-**Yêu cầu liên quan:** B-07, B-11.
-
-### DEC-08: Kiểm thử tự động kết hợp kiểm thử thủ công
-
-**Bối cảnh:**
-
-Một số yêu cầu có thể kiểm tra bằng unit test hoặc integration test, trong khi các yêu cầu về trải nghiệm học tập, điều hướng và khả năng sử dụng bàn phím cần được kiểm tra trực tiếp trên giao diện.
-
-**Quyết định:**
-
-Nhóm sử dụng kết hợp:
-- Kiểm thử tự động cho quy tắc ước lượng, chấm điểm, kiểm tra dữ liệu đầu vào và xử lý API.
-- Kiểm thử tích hợp cho việc lưu và truy xuất kết quả.
-- Kiểm thử thủ công cho luồng học tập, giao diện, bàn phím và thông báo lỗi.
-- CI để tự động chạy kiểm thử khi có Pull Request.
-
-Lệnh kiểm thử chính thức cần được tích hợp vào `npm test` và phải chạy được sau khi cài đặt sạch bằng `npm ci`.
+Chỉ thay đổi những thành phần trực tiếp liên quan đến dữ liệu câu hỏi, giao diện luyện tập, chấm điểm và lưu kết quả.
 
 **Lý do lựa chọn:**
-- Phát hiện lỗi sớm.
-- Có thể kiểm tra lại sau mỗi lần thay đổi.
-- Đáp ứng yêu cầu kiểm thử và tích hợp liên tục.
-- Bảo đảm khả năng bàn giao dự án.
 
-**Yêu cầu liên quan:** B-08, B-09, B-10, B-12.
+- Tuân thủ phạm vi B-07 của đề thi.
+- Giảm nguy cơ phát sinh lỗi ngoài yêu cầu.
+- Bảo đảm các chức năng hiện có tiếp tục hoạt động bình thường.
 
 ---
 
-## 4. Các quyết định cần xác nhận sau khi đọc tài liệu kiến trúc
+## 4. Tổng hợp quyết định kiến trúc theo từng thành phần
 
-Trước khi triển khai chính thức, nhóm cần đối chiếu các nội dung dưới đây với `docs/architecture-reference.md` và source code hiện có:
+Đây là phần trả lời trực tiếp yêu cầu làm rõ luồng UI, API, DB và kiểm thử.
 
-| Nội dung | Việc cần xác nhận |
-|---|---|
-| Luồng giao diện | Vị trí phù hợp để tích hợp bài tập mới |
-| API | Quy ước endpoint, phương thức HTTP và định dạng JSON |
-| Cơ sở dữ liệu | Bảng hiện có, cách tạo migration và lưu kết quả |
-| Người dùng/session | Cách xác định người dùng hiện tại mà không sửa auth |
-| Cấu trúc mã nguồn | Vị trí đặt module, route, service và test |
-| Kiểm thử | Công cụ test, cách chạy và quy ước đặt test |
-| CI | Cấu hình GitHub Actions hiện có hoặc vị trí tạo workflow |
+| Thành phần | Hiện trạng | Quyết định mở rộng |
+|---|---|---|
+| Question type | Có 4 type | Bổ sung `estimate` |
+| Database | `questions.correct_answer` lưu đáp án dạng TEXT | Lưu JSON gồm `lower`, `upper`, `exact` cho `estimate` |
+| Database attempts | Có `answers_json` | Lưu cả `estimate` và `exact` |
+| Database progress | Có `best_score`, `completed` | Giữ nguyên cơ chế cập nhật |
+| API chấm điểm | So sánh chuỗi chính xác | Thêm nhánh riêng `q.type === 'estimate'` trong `POST /api/submissions` |
+| Frontend | Dựng câu hỏi theo `type` | Sửa `public/assets/js/pages/exercise.js`, thêm hai ô nhập |
+| Kiểm thử | Kiểm tra các type hiện tại | Bổ sung kiểm thử khoảng biên, hai thành phần điểm, dữ liệu không hợp lệ và hồi quy |
 
-Những nội dung này chỉ được xem là đã chốt sau khi nhóm kiểm tra trực tiếp tài liệu kiến trúc và mã nguồn.
+### 4.1. Thay đổi cơ sở dữ liệu
 
-## 5. Quản lý thay đổi quyết định
+Không thêm bảng hoặc cột mới.
 
-Nếu trong quá trình triển khai nhóm thay đổi một quyết định đã ghi trong tài liệu, cần cập nhật lại nội dung tương ứng.
+Sử dụng:
 
-Mỗi thay đổi cần nêu rõ:
-- Quyết định cũ.
-- Quyết định mới.
-- Lý do thay đổi.
-- Ảnh hưởng đến yêu cầu, mã nguồn và kiểm thử.
+- `questions.type = 'estimate'`.
+- `questions.correct_answer` lưu JSON gồm ba thuộc tính `lower`, `upper`, `exact`.
+- `attempts.answers_json` lưu hai giá trị học sinh nhập.
+- `attempts.score_percent`, `correct_count`, `total_count` tiếp tục lưu kết quả theo cấu trúc hiện có.
+- `progress` tiếp tục lưu điểm cao nhất và trạng thái hoàn thành.
 
-Mọi thay đổi quan trọng cần được các thành viên liên quan xem xét trước khi hợp nhất vào nhánh chính.
+### 4.2. Thay đổi API
 
-## 6. Kết luận
+Chỉ bổ sung nhánh xử lý dạng `estimate` trong:
 
-Các quyết định thiết kế trên định hướng việc xây dựng tính năng “Ước lượng trước khi tính đúng” theo hướng đơn giản, có thể kiểm thử, bảo đảm tính chính xác và phù hợp với hệ thống Vườn Toán Lớp 3 hiện có.
+`POST /api/submissions`
 
-Nhóm ưu tiên tích hợp thay vì xây dựng độc lập, sử dụng quy tắc chấm điểm xác định thay vì AI, xử lý và lưu kết quả ở phía máy chủ, đồng thời bảo vệ hệ thống xác thực và dữ liệu người dùng.
+Nhánh mới thực hiện kiểm tra khoảng ước lượng và đáp án chính xác độc lập, sau đó tính điểm thành phần.
 
-Đây là cơ sở để nhóm triển khai MVP, xây dựng bộ kiểm thử và đánh giá mức độ đáp ứng các tiêu chí của cuộc thi.
+Các dạng câu hỏi cũ tiếp tục đi theo nhánh so sánh chuỗi hiện tại.
+
+### 4.3. Thay đổi giao diện
+
+Chỉnh sửa:
+
+`public/assets/js/pages/exercise.js`
+
+Bổ sung giao diện và logic thu thập hai giá trị trả lời. Frontend gửi dữ liệu đến API theo đúng cấu trúc đã thống nhất.
+
+### 4.4. Thay đổi kiểm thử
+
+Bổ sung các nhóm kiểm thử:
+
+- Kiểm tra giá trị ước lượng tại giới hạn dưới và giới hạn trên.
+- Kiểm tra giá trị nằm ngoài khoảng chấp nhận.
+- Kiểm tra kết quả tính toán chính xác.
+- Kiểm tra bốn trường hợp kết hợp đúng/sai của hai thành phần.
+- Kiểm tra dữ liệu thiếu, dữ liệu không phải số và số âm.
+- Kiểm tra việc lưu kết quả và cập nhật tiến độ.
+- Kiểm thử hồi quy bốn loại câu hỏi hiện có.
+- Kiểm tra API không tiết lộ đáp án chuẩn trước khi nộp bài.
+
+Chi tiết dữ liệu kiểm thử và kết quả mong đợi được trình bày trong `TEST_PLAN.md`.
+
+---
+
+## 5. Rủi ro và phương án kiểm soát
+
+| Rủi ro | Ảnh hưởng | Phương án kiểm soát |
+|---|---|---|
+| JSON trong `correct_answer` sai cấu trúc | Backend không thể chấm điểm | Kiểm tra cấu trúc JSON trước khi xử lý |
+| Giá trị nhập không phải số | Lỗi tính toán hoặc chấm điểm | Kiểm tra kiểu dữ liệu ở frontend và backend |
+| Tính sai khoảng ước lượng | Đánh giá sai câu trả lời | Kiểm thử giá trị biên |
+| Chỉ chấm một thành phần | Điểm không phản ánh đúng kết quả | Kiểm thử đủ bốn trường hợp đúng/sai |
+| Làm thay đổi logic type cũ | Phát sinh lỗi hồi quy | Giữ nguyên nhánh xử lý cũ |
+| Lộ đáp án chuẩn | Học sinh biết trước kết quả | API lấy câu hỏi không trả `correct_answer` |
+| Frontend tự chấm điểm | Có thể bị can thiệp dữ liệu | Backend thực hiện chấm điểm cuối cùng |
+
+---
+
+## 6. Phạm vi triển khai
+
+Trong giai đoạn tiếp theo, nhóm dự kiến thực hiện:
+
+1. Bổ sung loại câu hỏi `estimate`.
+2. Cập nhật dữ liệu câu hỏi theo cấu trúc JSON đã thống nhất.
+3. Bổ sung nhánh chấm điểm trong `POST /api/submissions`.
+4. Cập nhật giao diện `public/assets/js/pages/exercise.js`.
+5. Bổ sung dữ liệu mẫu cho phép nhân và phép chia.
+6. Xây dựng kiểm thử cho công thức sai số, giá trị biên và điểm thành phần.
+7. Kiểm thử việc lưu kết quả, cập nhật tiến độ và tính sao.
+8. Kiểm thử hồi quy các loại câu hỏi hiện có.
+
+Không thay đổi các chức năng xác thực, quản trị và các thành phần nằm ngoài phạm vi B-07.
+
+---
+
+## 7. Kết luận
+
+Nhóm lựa chọn mở rộng hệ thống bằng cách bổ sung loại câu hỏi `estimate`, sử dụng trường `correct_answer` hiện có để lưu khoảng ước lượng và đáp án chính xác dưới dạng JSON. Phương án này hạn chế việc thay đổi cấu trúc cơ sở dữ liệu, đồng thời cho phép API áp dụng quy tắc chấm điểm riêng cho dạng câu hỏi mới.
+
+Cơ chế sai số tương đối 10% giúp xác định khoảng ước lượng một cách rõ ràng và tất định. Việc chia điểm thành hai thành phần 50/50 giúp đánh giá đồng thời khả năng ước lượng và tính toán chính xác của học sinh.
+
+Ở phía backend, nhóm bổ sung nhánh xử lý `estimate` trong `POST /api/submissions`; ở phía frontend, nhóm cập nhật `public/assets/js/pages/exercise.js` để hiển thị và thu thập hai câu trả lời. Các loại câu hỏi cũ, cơ chế xác thực, cập nhật tiến độ và tính sao được giữ nguyên.
+
+Những quyết định trên là cơ sở kiến trúc cho giai đoạn triển khai và kiểm thử tiếp theo. Các nội dung được mô tả trong tài liệu là thiết kế dự kiến, không khẳng định tính năng `estimate` đã được triển khai trong mã nguồn hiện tại.
