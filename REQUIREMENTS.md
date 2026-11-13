@@ -2,462 +2,202 @@
 # VƯỜN TOÁN LỚP 3 – ƯỚC LƯỢNG TRƯỚC KHI TÍNH ĐÚNG
 ---
 
-## 1. Giới thiệu
-
-### 1.1. Mục đích tài liệu
-
-Tài liệu này xác định các yêu cầu chức năng, yêu cầu phi chức năng và tiêu chí chấp nhận đối với việc mở rộng hệ thống Vườn Toán Lớp 3 bằng cách bổ sung dạng bài tập “Ước lượng trước khi tính đúng”.
-
-Mục tiêu của chức năng là giúp học sinh lớp 3 rèn luyện khả năng ước lượng kết quả phép tính trước khi thực hiện phép tính chính xác. Qua đó, học sinh không chỉ luyện tập kỹ năng tính toán mà còn phát triển tư duy số học, khả năng dự đoán và kiểm tra tính hợp lý của kết quả.
-
-Tài liệu được sử dụng làm cơ sở cho thiết kế, triển khai và kiểm thử trong các giai đoạn tiếp theo.
-
-### 1.2. Bối cảnh
-
-Hệ thống Vườn Toán Lớp 3 hiện hỗ trợ bốn loại câu hỏi:
-
-- `multiple-choice`: Câu hỏi trắc nghiệm.
-- `input`: Câu hỏi nhập đáp án.
-- `compare`: Câu hỏi so sánh.
-- `paint`: Câu hỏi tô màu.
-
-Các dạng câu hỏi hiện tại chưa hỗ trợ việc đánh giá đồng thời khả năng ước lượng và khả năng tính toán chính xác.
-
-Vì vậy, nhóm đề xuất bổ sung dạng câu hỏi mới có tên `estimate`, trong đó học sinh phải thực hiện hai nhiệm vụ: nhập kết quả ước lượng và nhập kết quả tính toán chính xác.
-
-### 1.3. Đối tượng sử dụng
-
-- **Học sinh lớp 3:** Trực tiếp làm bài tập và nhận kết quả đánh giá.
-- **Giáo viên:** Sử dụng hệ thống để tổ chức nội dung luyện tập và theo dõi kết quả học tập.
-
----
-
-## 2. Phạm vi dự án
-
-### 2.1. Trong phạm vi
-
-Chức năng mới bao gồm:
-
-1. Bổ sung loại câu hỏi `estimate`.
-2. Hỗ trợ bài tập ước lượng kết quả phép nhân và phép chia.
-3. Cho phép học sinh nhập kết quả ước lượng.
-4. Cho phép học sinh nhập kết quả tính toán chính xác.
-5. Xác định khoảng ước lượng hợp lệ theo quy tắc sai số 10%.
-6. Chấm điểm độc lập hai thành phần trả lời.
-7. Lưu kết quả làm bài vào hệ thống hiện tại.
-8. Cập nhật điểm số, tiến độ và sao theo cơ chế sẵn có.
-9. Bổ sung dữ liệu mẫu và các trường hợp kiểm thử.
-10. Bảo đảm các dạng câu hỏi hiện có tiếp tục hoạt động bình thường.
-
-### 2.2. Ngoài phạm vi
-
-Các chức năng sau không thuộc phạm vi thực hiện:
-
-- Thay đổi hệ thống đăng nhập và xác thực người dùng.
-- Thay đổi chức năng quản trị và quản lý giáo viên.
-- Xây dựng lại toàn bộ giao diện hệ thống.
-- Thay đổi cấu trúc cơ sở dữ liệu nếu không thực sự cần thiết.
-- Bổ sung các dạng phép tính khác ngoài phép nhân và phép chia trong phạm vi phiên bản này.
-- Thay đổi cơ chế tính sao và cập nhật tiến độ hiện có.
-
----
-
-## 3. Mô tả chức năng
-
-### 3.1. Quy trình làm bài
-
-Một câu hỏi `estimate` có quy trình như sau:
-
-1. Hệ thống hiển thị phép tính cần thực hiện.
-2. Học sinh quan sát phép tính và nhập kết quả ước lượng.
-3. Học sinh tiếp tục thực hiện phép tính và nhập kết quả chính xác.
-4. Học sinh gửi câu trả lời.
-5. Backend kiểm tra tính hợp lệ của dữ liệu.
-6. Hệ thống xác định kết quả ước lượng đúng hay sai.
-7. Hệ thống xác định kết quả tính toán chính xác đúng hay sai.
-8. Hệ thống tính điểm cho câu hỏi.
-9. Hệ thống lưu kết quả và cập nhật tiến độ học tập.
-
-### 3.2. Ví dụ minh họa
-
-Với câu hỏi:
-
-\[
-12\times4=?
-\]
-
-Hệ thống xác định kết quả chính xác là 48 và khoảng ước lượng hợp lệ là từ 44 đến 52.
-
-Học sinh cần nhập hai giá trị:
-
-- Kết quả ước lượng: 48.
-- Kết quả tính chính xác: 48.
-
-Nếu học sinh nhập kết quả ước lượng là 50 và kết quả chính xác là 48 thì cả hai thành phần đều được tính đúng.
-
-Nếu học sinh nhập kết quả ước lượng là 43 nhưng kết quả tính chính xác là 48 thì học sinh chỉ được ghi nhận điểm của thành phần tính chính xác.
-
----
-
-## 4. Yêu cầu chức năng
-
-### FR-01. Nhận diện loại câu hỏi mới
-
-Hệ thống phải hỗ trợ loại câu hỏi mới có giá trị:
-
-`type = "estimate"`
-
-Loại câu hỏi này phải được phân biệt với các loại câu hỏi hiện có và có cách hiển thị, thu thập dữ liệu và chấm điểm riêng.
-
-### FR-02. Hiển thị nội dung câu hỏi
-
-Hệ thống phải hiển thị đầy đủ nội dung phép tính cần thực hiện.
-
-Đối với câu hỏi `estimate`, giao diện phải có hai ô nhập riêng biệt:
-
-- Ô nhập kết quả ước lượng.
-- Ô nhập kết quả tính toán chính xác.
-
-Hai ô nhập phải có nhãn hướng dẫn rõ ràng, dễ hiểu và phù hợp với học sinh lớp 3.
-
-### FR-03. Nhập kết quả ước lượng
-
-Hệ thống phải cho phép học sinh nhập một số nguyên không âm làm kết quả ước lượng.
-
-Giá trị nhập phải được kiểm tra tính hợp lệ trước khi gửi đến máy chủ.
-
-### FR-04. Nhập kết quả tính toán chính xác
-
-Hệ thống phải cho phép học sinh nhập kết quả chính xác của phép tính dưới dạng số nguyên không âm.
-
-Kết quả này được sử dụng để đánh giá khả năng thực hiện phép tính của học sinh.
-
-### FR-05. Xác định khoảng ước lượng hợp lệ
-
-Hệ thống phải xác định khoảng ước lượng dựa trên kết quả chính xác của phép tính.
-
-Gọi:
-
-- \(R\): Kết quả chính xác.
-- \(L\): Giới hạn dưới.
-- \(U\): Giới hạn trên.
-
-Công thức xác định khoảng:
-
-\[
-L=\lceil0.9R\rceil
-\]
-
-\[
-U=\lfloor1.1R\rfloor
-\]
-
-Giá trị ước lượng \(E\) được chấp nhận khi:
-
-\[
-L\leq E\leq U
-\]
-
-Trong đó:
-
-- Sai số tương đối tối đa được lựa chọn là 10%.
-- Giới hạn dưới và giới hạn trên đều được tính là giá trị hợp lệ.
-- Các giá trị nằm ngoài khoảng không được chấp nhận.
-
-Quy tắc này được áp dụng thống nhất cho phép nhân và phép chia có kết quả nguyên không âm.
-
-### FR-06. Chấm điểm kết quả ước lượng
-
-Hệ thống phải kiểm tra kết quả ước lượng của học sinh có nằm trong khoảng hợp lệ hay không.
-
-- Nếu nằm trong khoảng hợp lệ: Thành phần ước lượng được tính đúng.
-- Nếu nằm ngoài khoảng hợp lệ: Thành phần ước lượng được tính sai.
-
-### FR-07. Chấm điểm kết quả tính toán chính xác
-
-Hệ thống phải so sánh kết quả học sinh nhập với đáp án chính xác được lưu trong dữ liệu câu hỏi.
-
-- Nếu hai giá trị bằng nhau: Thành phần tính toán được tính đúng.
-- Nếu hai giá trị khác nhau: Thành phần tính toán được tính sai.
-
-### FR-08. Tính điểm câu hỏi
-
-Mỗi câu hỏi `estimate` được chia thành hai thành phần có tỷ trọng bằng nhau:
-
-| Thành phần | Tỷ lệ điểm |
-|---|---:|
-| Ước lượng | 50% |
-| Tính toán chính xác | 50% |
-| Tổng | 100% |
-
-Gọi \(P\) là điểm tối đa của câu hỏi.
-
-Điểm đạt được được tính theo công thức:
-
-\[
-C=C_E+C_X
-\]
-
-Trong đó:
-
-\[
-C_E=
-\begin{cases}
-0.5P & \text{nếu ước lượng đúng}\\
-0 & \text{nếu ước lượng sai}
-\end{cases}
-\]
-
-\[
-C_X=
-\begin{cases}
-0.5P & \text{nếu tính chính xác đúng}\\
-0 & \text{nếu tính chính xác sai}
-\end{cases}
-\]
-
-Các trường hợp cụ thể:
-
-| Ước lượng | Tính chính xác | Điểm |
-|---|---|---:|
-| Đúng | Đúng | 100% |
-| Đúng | Sai | 50% |
-| Sai | Đúng | 50% |
-| Sai | Sai | 0% |
-
-Một câu hỏi chỉ được tính là câu trả lời đúng hoàn toàn khi cả hai thành phần đều đúng.
-
-### FR-09. Lưu kết quả làm bài
-
-Hệ thống phải lưu được cả hai giá trị mà học sinh đã nhập.
-
-Dữ liệu câu trả lời được lưu trong trường `answers_json` của bảng `attempts` theo cấu trúc:
-
-```json
-{
-  "estimate-01": {
-    "estimate": 48,
-    "exact": 48
-  }
-}
-```
-
-Các thông tin về điểm số, số câu đúng, tổng số câu và thời gian làm bài tiếp tục được lưu theo cấu trúc hiện có.
-
-### FR-10. Cập nhật tiến độ và sao
-
-Sau khi học sinh hoàn thành bài tập, hệ thống phải:
-
-- Lưu kết quả lần làm bài.
-- Cập nhật điểm số theo cơ chế hiện tại.
-- Cập nhật điểm cao nhất trong `progress` nếu kết quả đáp ứng điều kiện hiện có.
-- Cập nhật trạng thái hoàn thành theo quy tắc hiện tại.
-- Tính sao thưởng theo cơ chế hiện tại.
-
-Việc bổ sung dạng câu hỏi `estimate` không được tạo ra một cơ chế cập nhật tiến độ hoặc tính sao riêng.
-
-### FR-11. Bảo vệ đáp án
-
-Hệ thống không được trả về đáp án chính xác hoặc khoảng ước lượng hợp lệ trong API lấy danh sách câu hỏi dành cho học sinh.
-
-Các thông tin `lower`, `upper`, `exact` chỉ được sử dụng ở phía backend trong quá trình chấm điểm.
-
-### FR-12. Tương thích với các loại câu hỏi hiện có
-
-Việc bổ sung `estimate` không được làm thay đổi cơ chế xử lý của các loại câu hỏi:
-
-- `multiple-choice`.
-- `input`.
-- `compare`.
-- `paint`.
-
-Các dạng câu hỏi hiện tại phải tiếp tục hoạt động như trước khi bổ sung chức năng mới.
-
----
-
-## 5. Yêu cầu phi chức năng
-
-### NFR-01. Tính chính xác
-
-Các phép tính xác định giới hạn dưới và giới hạn trên phải tuân thủ đúng công thức đã quy định.
-
-Kết quả chấm điểm phải nhất quán với dữ liệu đáp án được lưu trong cơ sở dữ liệu.
-
-### NFR-02. Tính dễ sử dụng
-
-Giao diện phải đơn giản, trực quan và phù hợp với khả năng tiếp nhận của học sinh lớp 3.
-
-Hai ô nhập phải được phân biệt rõ ràng để tránh nhầm lẫn giữa kết quả ước lượng và kết quả tính toán chính xác.
-
-### NFR-03. Tính tương thích
-
-Chức năng mới phải hoạt động trên kiến trúc hiện có của dự án, sử dụng Node.js, Express, SQLite, HTML, CSS và JavaScript.
-
-Không yêu cầu thay đổi toàn bộ hệ thống hoặc bổ sung công nghệ mới.
-
-### NFR-04. Tính bảo mật
-
-Đáp án chuẩn và khoảng ước lượng hợp lệ không được gửi đến frontend trước khi học sinh nộp bài.
-
-Backend phải tự kiểm tra và chấm điểm, không phụ thuộc vào kết quả đánh giá do frontend gửi lên.
-
-### NFR-05. Khả năng bảo trì
-
-Mã nguồn bổ sung phải được tổ chức theo cấu trúc hiện có.
-
-Nhánh xử lý câu hỏi `estimate` phải tách biệt với các nhánh xử lý câu hỏi cũ để hạn chế ảnh hưởng và thuận tiện cho việc bảo trì.
-
-### NFR-06. Khả năng kiểm thử
-
-Các quy tắc tính khoảng, kiểm tra giá trị biên và tính điểm phải có thể kiểm thử bằng các dữ liệu đầu vào và đầu ra cụ thể.
-
----
-
-## 6. Dữ liệu mẫu và tiêu chí chấp nhận
-
-### 6.1. Dữ liệu mẫu cho phép nhân và phép chia
-
-Hệ thống cần có tối thiểu 12 trường hợp dữ liệu mẫu để kiểm tra công thức xác định khoảng ước lượng.
-
-Các giá trị trong bảng được xác định theo:
-
-\[
-L=\lceil0.9R\rceil,\qquad U=\lfloor1.1R\rfloor
-\]
-
-| Mã | Phép tính | Kết quả chính xác (R) | Giới hạn dưới (L) | Giới hạn trên (U) |
-|---|---|---:|---:|---:|
-| F01 | 12 × 4 | 48 | 44 | 52 |
-| F02 | 15 × 3 | 45 | 41 | 49 |
-| F03 | 24 × 3 | 72 | 65 | 79 |
-| F04 | 18 × 5 | 90 | 81 | 99 |
-| F05 | 25 × 4 | 100 | 90 | 110 |
-| F06 | 32 × 3 | 96 | 87 | 105 |
-| F07 | 48 ÷ 4 | 12 | 11 | 13 |
-| F08 | 72 ÷ 6 | 12 | 11 | 13 |
-| F09 | 84 ÷ 4 | 21 | 19 | 23 |
-| F10 | 96 ÷ 4 | 24 | 22 | 26 |
-| F11 | 120 ÷ 5 | 24 | 22 | 26 |
-| F12 | 144 ÷ 6 | 24 | 22 | 26 |
-
-Các dữ liệu trên là cơ sở để xây dựng bộ câu hỏi mẫu và kiểm thử chức năng chấm điểm.
-
-### 6.2. Tiêu chí chấp nhận
-
-**AC-01. Nhận diện câu hỏi**
-
-Khi hệ thống nhận được câu hỏi có `type = estimate`, giao diện phải hiển thị đúng dạng bài ước lượng với hai ô nhập.
-
-**AC-02. Nhập dữ liệu**
-
-Học sinh có thể nhập hai giá trị riêng biệt. Hệ thống phải từ chối dữ liệu không hợp lệ như giá trị rỗng, số âm hoặc dữ liệu không phải số nguyên.
-
-**AC-03. Kiểm tra khoảng ước lượng**
-
-Với phép tính \(12\times4=48\), khoảng hợp lệ phải là từ 44 đến 52.
-
-Các giá trị 44, 48 và 52 phải được chấp nhận; các giá trị 43 và 53 phải bị từ chối.
-
-**AC-04. Kiểm tra phép chia**
-
-Với phép tính \(84\div4=21\), khoảng hợp lệ phải là từ 19 đến 23.
-
-Các giá trị 19, 21 và 23 phải được chấp nhận; các giá trị 18 và 24 phải bị từ chối.
-
-**AC-05. Chấm điểm độc lập**
-
-Hệ thống phải phân biệt được bốn trường hợp:
-
-- Cả hai thành phần đúng: 100% điểm câu hỏi.
-- Chỉ ước lượng đúng: 50% điểm câu hỏi.
-- Chỉ tính chính xác đúng: 50% điểm câu hỏi.
-- Cả hai thành phần sai: 0% điểm câu hỏi.
-
-**AC-06. Lưu kết quả**
-
-Sau khi nộp bài, hệ thống phải lưu được cả giá trị ước lượng và giá trị tính chính xác trong `answers_json`.
-
-**AC-07. Cập nhật tiến độ**
-
-Kết quả bài làm phải được lưu vào `attempts` và được sử dụng trong luồng cập nhật `progress` và tính sao hiện có.
-
-**AC-08. Bảo mật đáp án**
-
-API lấy danh sách câu hỏi không được trả về `correct_answer` hoặc các giới hạn ước lượng.
-
-**AC-09. Tương thích ngược**
-
-Bốn loại câu hỏi hiện có phải tiếp tục hoạt động bình thường sau khi bổ sung dạng `estimate`.
-
----
-
-## 7. Yêu cầu kiểm thử
-
-Các yêu cầu cần được kiểm thử bao gồm:
-
-| Mã | Nội dung kiểm thử | Kết quả mong đợi |
-|---|---|---|
-| TC-01 | Hiển thị câu hỏi `estimate` | Có hai ô nhập riêng biệt |
-| TC-02 | Nhập hai giá trị hợp lệ | Hệ thống tiếp nhận dữ liệu |
-| TC-03 | Nhập dữ liệu không hợp lệ | Hệ thống từ chối dữ liệu |
-| TC-04 | Kiểm tra công thức tính khoảng | Giới hạn được tính đúng |
-| TC-05 | Nhập 48 cho phép tính 12 × 4 | Ước lượng hợp lệ |
-| TC-06 | Nhập 44 cho phép tính 12 × 4 | Ước lượng hợp lệ |
-| TC-07 | Nhập 52 cho phép tính 12 × 4 | Ước lượng hợp lệ |
-| TC-08 | Nhập 43 cho phép tính 12 × 4 | Ước lượng không hợp lệ |
-| TC-09 | Nhập 53 cho phép tính 12 × 4 | Ước lượng không hợp lệ |
-| TC-10 | Nhập 48 ở phần tính chính xác | Tính chính xác đúng |
-| TC-11 | Nhập 47 ở phần tính chính xác | Tính chính xác sai |
-| TC-12 | Ước lượng 48, tính chính xác 47 | Đạt 50% điểm câu hỏi |
-| TC-13 | Ước lượng 43, tính chính xác 48 | Đạt 50% điểm câu hỏi |
-| TC-14 | Cả hai thành phần đều đúng | Đạt 100% điểm câu hỏi |
-| TC-15 | Cả hai thành phần đều sai | Đạt 0% điểm câu hỏi |
-| TC-16 | Lưu câu trả lời | Lưu đủ hai giá trị trong `answers_json` |
-| TC-17 | Kiểm tra API lấy câu hỏi | Không trả về đáp án chuẩn |
-| TC-18 | Kiểm tra cập nhật tiến độ | Tiến độ được cập nhật theo cơ chế hiện tại |
-| TC-19 | Kiểm tra tính sao | Sao được tính theo cơ chế hiện tại |
-| TC-20 | Kiểm thử hồi quy | Bốn loại câu hỏi cũ vẫn hoạt động |
-
-Chi tiết từng bước thực hiện, dữ liệu đầu vào và kết quả mong đợi được trình bày trong `TEST_PLAN.md`.
-
----
-
-## 8. Ràng buộc kỹ thuật
-
-### 8.1. Công nghệ sử dụng
-
-Chức năng mới phải sử dụng công nghệ và kiến trúc hiện có:
-
-- Node.js.
-- Express.
-- SQLite.
-- `better-sqlite3`.
-- HTML, CSS và JavaScript thuần.
-
-### 8.2. Các thành phần dự kiến thay đổi
-
-| Thành phần | Đường dẫn | Nội dung thay đổi |
-|---|---|---|
-| Backend API | `server/api.js` | Bổ sung nhánh chấm điểm `estimate` trong `POST /api/submissions` |
-| Frontend | `public/assets/js/pages/exercise.js` | Hiển thị hai ô nhập và thu thập dữ liệu |
-| Dữ liệu câu hỏi | Bảng `questions` | Bổ sung type `estimate`, lưu JSON trong `correct_answer` |
-| Dữ liệu kết quả | Bảng `attempts` | Lưu hai thành phần câu trả lời trong `answers_json` |
-
-### 8.3. Các thành phần không được thay đổi
-
-- `server/auth.js`.
-- Các route `/api/auth/*`.
-- Các route `/api/teacher/*`.
-- Các route `/api/admin/*`.
-- Cơ chế xử lý bốn loại câu hỏi hiện có.
-- Cơ chế cập nhật tiến độ và tính sao hiện có.
-
----
-
-## 9. Kết luận
-
-Chức năng “Ước lượng trước khi tính đúng” được xây dựng nhằm bổ sung một phương pháp luyện tập giúp học sinh lớp 3 phát triển đồng thời khả năng ước lượng và kỹ năng tính toán chính xác.
-
-Nhóm lựa chọn bổ sung loại câu hỏi `estimate`, áp dụng sai số tương đối 10% để xác định khoảng chấp nhận và chia điểm thành hai thành phần bằng nhau. Dữ liệu đáp án được lưu dưới dạng JSON trong trường `correct_answer` hiện có, trong khi kết quả làm bài tiếp tục được lưu trong cấu trúc `attempts` hiện tại.
-
-Phương án này tận dụng kiến trúc sẵn có, hạn chế thay đổi cơ sở dữ liệu và bảo đảm khả năng tương thích với các chức năng hiện tại. Đây là cơ sở để nhóm triển khai, kiểm thử và đánh giá chức năng trong các giai đoạn tiếp theo.
+1. Mục đích và phạm vi tài liệu
+Tài liệu này đặc tả yêu cầu cho việc mở rộng hệ thống Vườn Toán Lớp 3 bằng dạng bài “Ước lượng trước khi tính đúng”. Tài liệu là căn cứ chung cho phân tích, thiết kế, triển khai, kiểm thử và nghiệm thu tính năng.
+
+Tính năng yêu cầu học sinh thực hiện hai bước trong cùng một câu hỏi:
+1. Đưa ra một giá trị ước lượng cho kết quả phép tính.
+2. Nhập kết quả tính chính xác.
+Hệ thống đánh giá riêng hai phần, phản hồi rõ phần nào hợp lý và phần nào chính xác. Tính năng phải được tích hợp vào hệ thống hiện có, không phải một ứng dụng độc lập.
+
+Tài liệu này phải được đọc cùng DECISIONS.md, TEST_PLAN.md và docs/architecture-reference.md. Khi có khác biệt giữa tài liệu nhóm và mã nguồn/đặc tả chính thức, nhóm phải kiểm tra và ghi nhận khác biệt, không tự giả định.
+2. Thông tin và bối cảnh hệ thống
+Thuộc tính	Nội dung
+Sản phẩm	Vườn Toán Lớp 3
+Cuộc thi	KTPMUD Hack Marathon 2026
+Track	B – Vườn Toán Lớp 3
+Nhóm	33
+Phiên bản starter	bkt-2026-v1
+Backend	Node.js 18+, Express
+Cơ sở dữ liệu	SQLite thông qua better-sqlite3
+Frontend	HTML, CSS và JavaScript thuần
+Dạng bài mới	Ước lượng trước khi tính đúng
+Đối tượng sử dụng	Học sinh sử dụng hệ thống học tập hiện có
+
+
+Theo docs/architecture-reference.md, ứng dụng hiện tại sử dụng Express, SQLite và giao diện tĩnh. Các câu hỏi hiện có gồm các type multiple-choice, input, compare, paint; đáp án hiện được lưu trong questions.correct_answer. Luồng nộp bài hiện tại đi qua POST /api/submissions, lưu kết quả vào attempts và cập nhật tiến độ. Cơ chế xác thực nằm trong server/auth.js và ngoài phạm vi thay đổi của tính năng.
+3. Mục tiêu
+3.1. Mục tiêu nghiệp vụ
+- Giúp học sinh luyện tư duy ước lượng trước khi tính toán.
+- Khuyến khích học sinh kiểm tra tính hợp lý của kết quả.
+- Cung cấp phản hồi dễ hiểu, phù hợp với học sinh lớp 3.
+- Duy trì trải nghiệm học tập và tiến độ của hệ thống hiện có.
+3.2. Mục tiêu kỹ thuật
+- Bổ sung type câu hỏi mới mà không làm thay đổi hành vi của bốn type cũ.
+- Có quy tắc ước lượng và chấm điểm tất định, có thể giải thích và kiểm thử.
+- Để server xác thực dữ liệu, chấm điểm và lưu kết quả.
+- Không tiết lộ đáp án hoặc dữ liệu chấm điểm nội bộ trước khi nộp bài.
+- Có ít nhất 12 fixture tổng hợp, test tự động, lệnh npm test và CI chạy test trên Pull Request.
+- Có thể cài đặt và chạy lại từ trạng thái repository sạch.
+4. Phạm vi
+4.1. Trong phạm vi
+- Tích hợp dạng bài vào luồng học tập hiện có.
+- Bổ sung câu hỏi phép nhân và phép chia phù hợp với phạm vi lớp 3.
+- Thu nhận hai câu trả lời: ước lượng và kết quả chính xác.
+- Tính khoảng ước lượng theo công thức thống nhất tại DECISIONS.md.
+- Chấm điểm riêng hai thành phần theo tỷ trọng 50% – 50%.
+- Lưu kết quả bằng cơ chế lưu trữ hiện có.
+- Trả phản hồi sau khi nộp bài.
+- Bổ sung kiểm thử đơn vị, tích hợp, API và giao diện.
+- Bổ sung lệnh test và CI phù hợp với repository.
+4.2. Ngoài phạm vi
+- Xây dựng ứng dụng hoặc hệ thống đăng nhập mới.
+- Thay đổi cơ chế xác thực, session, cookie hoặc tài khoản mẫu.
+- Chỉnh sửa các route /api/auth/*, /api/teacher/*, /api/admin/* ngoài yêu cầu được cho phép.
+- Sử dụng dữ liệu cá nhân thật của học sinh/giáo viên.
+- Dùng AI/LLM hoặc dịch vụ bên ngoài để chấm câu trả lời.
+- Thay đổi các type câu hỏi hiện có hoặc viết lại toàn bộ kiến trúc.
+- Triển khai production mới.
+5. Quy tắc nghiệp vụ và thuật ngữ
+Với mỗi câu hỏi:
+- R: kết quả chính xác của phép tính.
+- L: cận dưới của khoảng ước lượng.
+- U: cận trên của khoảng ước lượng.
+- E: giá trị ước lượng học sinh nhập.
+- A: kết quả chính xác học sinh nhập.
+Một câu trả lời ước lượng hợp lý khi L <= E <= U. Hai cận đều được tính là hợp lệ. Đáp án tính chính xác đúng khi A = R.
+
+Quy tắc xử lý dữ liệu cần phân biệt:
+- Dữ liệu sai định dạng, thiếu trường bắt buộc, không phải số nguyên hoặc nằm ngoài giới hạn đầu vào được công bố: server từ chối request bằng lỗi phù hợp; không chấm và không lưu một attempt hợp lệ.
+- Một số nguyên hợp lệ nhưng nằm ngoài [L,U]: vẫn là câu trả lời hợp lệ về mặt định dạng; server ghi nhận phần ước lượng là sai, vẫn chấm phần đáp án chính xác.
+- Không được dùng từ “từ chối dữ liệu” cho trường hợp số nguyên hợp lệ nhưng nằm ngoài khoảng ước lượng.
+6. Yêu cầu chức năng
+FR-01 – Tích hợp vào luồng học tập
+Tính năng phải được truy cập từ khu vực học tập hiện có. Không tạo trang demo tách rời hoặc yêu cầu người dùng đăng nhập bằng cơ chế mới.
+
+Tiêu chí chấp nhận: Người học có thể mở dạng bài từ điều hướng học tập hiện có và quay lại luồng học tập mà không làm hỏng chức năng cũ.
+FR-02 – Hỗ trợ type câu hỏi ước lượng
+Hệ thống bổ sung một type mới, đề xuất định danh estimate. Type mới phải được xử lý riêng và không làm thay đổi cách hiển thị/chấm điểm của multiple-choice, input, compare, paint.
+
+Tiêu chí chấp nhận: Câu hỏi estimate hiển thị đủ hai vùng nhập; các type cũ vẫn hoạt động như trước.
+FR-03 – Bộ dữ liệu câu hỏi tái lập
+Hệ thống phải có tối thiểu 12 câu hỏi/fixture tổng hợp, có ID duy nhất, bao gồm phép nhân và phép chia, có thể dùng lặp lại trong test và demo.
+
+Tiêu chí chấp nhận: Có ít nhất 12 fixture được lưu thành dữ liệu có cấu trúc trong repository; test có thể nạp và kiểm tra chúng.
+FR-04 – Tính khoảng ước lượng xác định
+Với kết quả chính xác nguyên dương R, hệ thống tính:
+- L = ceil(0.9 × R)
+- U = floor(1.1 × R)
+Khoảng được hiểu là đóng [L,U]. Công thức, miền dữ liệu và ví dụ phải được thống nhất trong DECISIONS.md. Không dùng số ngẫu nhiên hoặc đánh giá chủ quan.
+
+Tiêu chí chấp nhận: Cùng một R luôn tạo cùng L,U; test kiểm tra kết quả ở trong khoảng, đúng hai cận và ngoài hai cận.
+FR-05 – Thu nhận và xác thực câu trả lời
+Mỗi câu trả lời gồm giá trị ước lượng E và đáp án chính xác A. Server xác thực kiểu dữ liệu, trường bắt buộc và giới hạn đầu vào trước khi chấm.
+
+Tiêu chí chấp nhận: Dữ liệu thiếu/sai kiểu/không phải số nguyên bị từ chối; số nguyên hợp lệ ngoài khoảng vẫn được chấm là ước lượng sai.
+FR-06 – Chấm điểm phía server
+Server là nơi duy nhất quyết định kết quả. Mỗi câu hỏi có hai thành phần điểm bằng nhau:
+- Ước lượng hợp lý: 50% điểm câu hỏi.
+- Đáp án chính xác: 50% điểm câu hỏi.
+Điểm câu hỏi = points × (0.5 × estimateCorrect + 0.5 × exactCorrect), trong đó mỗi biến đúng/sai có giá trị 1 hoặc 0. Tổng điểm phần trăm được tính từ tổng điểm đạt được chia tổng điểm tối đa, nhân 100 và làm tròn theo một quy tắc duy nhất được triển khai trong server.
+
+Tiêu chí chấp nhận: Cả hai đúng được 100% điểm câu hỏi; chỉ một phần đúng được 50%; cả hai sai được 0%. Frontend không tự quyết định điểm.
+FR-07 – Phản hồi riêng biệt
+Sau khi nộp, hệ thống phải thông báo riêng:
+- Ước lượng hợp lý hay chưa.
+- Kết quả tính chính xác đúng hay chưa.
+- Điểm đạt được và lời giải thích phù hợp.
+Không hiển thị đáp án chuẩn trước khi nộp.
+
+Tiêu chí chấp nhận: Bốn tổ hợp đúng/sai của hai thành phần có phản hồi phân biệt được.
+FR-08 – Bảo vệ đáp án
+API lấy câu hỏi chỉ trả dữ liệu cần để hiển thị và nhập câu trả lời. Không trả correct_answer, R, L, U, exact, hoặc dữ liệu nội bộ tương đương trước khi nộp.
+
+Tiêu chí chấp nhận: Kiểm tra toàn bộ JSON của API lấy câu hỏi và các trường lồng nhau; không có đáp án hoặc cận chấm điểm. Server tự lấy đáp án từ dữ liệu lưu trữ khi chấm.
+FR-09 – Lưu kết quả và tiến độ
+Kết quả được lưu ở server bằng cơ chế attempts/`progress` hiện có hoặc cách mở rộng tương thích đã được nhóm giải trình. Dữ liệu lưu phải đủ để xem lại hai câu trả lời và kết quả hai thành phần.
+
+Tiêu chí chấp nhận: Sau khi nộp và tải lại trang, kết quả đã lưu vẫn truy xuất được; không ghi đè sai attempt của người dùng khác.
+FR-10 – Bảo toàn quy tắc tiến độ và sao
+Tính năng phải tích hợp với cơ chế cập nhật tiến độ và phần thưởng hiện có, không tự tạo cơ chế tiến độ hoặc sao xung đột. correct_count chỉ tăng cho câu hỏi được xác định là đúng hoàn toàn theo quy ước của hệ thống; việc lưu điểm thành phần phải được mô tả rõ trong thiết kế.
+
+Tiêu chí chấp nhận: Kết quả nộp bài cập nhật tiến độ theo quy tắc hiện có và không cộng trùng phần thưởng.
+FR-11 – Kiểm thử tự động và CI
+Có test tự động cho công thức, chấm điểm, xác thực dữ liệu, API, lưu/truy xuất và bảo vệ đáp án. Có script npm test; CI cài phụ thuộc và chạy test trên Pull Request.
+
+Tiêu chí chấp nhận: npm ci và npm test chạy được từ checkout sạch; CI báo trạng thái thành công/thất bại rõ ràng.
+FR-12 – Bảo toàn chức năng hiện có
+Không thay đổi hành vi của các type câu hỏi cũ và các chức năng không liên quan. Không sửa server/auth.js, cơ chế session, tài khoản mẫu hoặc route ngoài phạm vi bị cấm.
+
+Tiêu chí chấp nhận: Diff được rà soát; test hồi quy cho các type cũ chạy đạt; không có chỉnh sửa ngoài phạm vi.
+7. Yêu cầu phi chức năng
+NFR-01 – Tính xác định
+Cùng dữ liệu đầu vào và cùng phiên bản quy tắc phải tạo cùng khoảng ước lượng và điểm số.
+NFR-02 – Bảo mật đáp án
+Không gửi đáp án chuẩn hoặc dữ liệu nội bộ chấm điểm trước khi nộp. Không tin tưởng điểm số do client gửi lên.
+NFR-03 – Quyền riêng tư
+Chỉ dùng dữ liệu giả lập, không ghi thông tin nhận dạng thật của trẻ em hoặc người dùng vào fixture, log, ảnh chụp hay báo cáo.
+NFR-04 – Khả năng tương thích
+Sử dụng stack và cấu trúc hiện có của starter; không thêm framework frontend hoặc ORM mới nếu không có lý do và phê duyệt trong ADR.
+NFR-05 – Khả năng bảo trì
+Quy tắc tính khoảng và chấm điểm phải tách thành hàm/module có thể kiểm thử; tránh lặp logic ở frontend và backend.
+NFR-06 – Khả năng sử dụng và truy cập
+Nhãn trường nhập rõ ràng; thông báo lỗi dễ hiểu; các thao tác chính dùng được bằng bàn phím; giao diện không phụ thuộc riêng vào màu sắc để truyền đạt đúng/sai.
+8. Dữ liệu mẫu và quy ước
+Bộ fixture chuẩn đề xuất được lưu ở test/fixtures/estimate-fixtures.json (hoặc vị trí tương đương được xác nhận trong repository). Từng fixture có id, operation, left, right, result, lower, upper.
+ID	Phép tính	R	L	U
+F01	12 × 4	48	44	52
+F02	15 × 3	45	41	49
+F03	18 × 5	90	81	99
+F04	24 × 4	96	87	105
+F05	32 × 3	96	87	105
+F06	27 × 6	162	146	178
+F07	72 ÷ 6	12	11	13
+F08	84 ÷ 7	12	11	13
+F09	96 ÷ 8	12	11	13
+F10	144 ÷ 12	12	11	13
+F11	180 ÷ 9	20	18	22
+F12	216 ÷ 6	36	33	39
+
+
+Các phép chia trong bộ fixture này đều có thương nguyên. Các giá trị L,U phải được kiểm tra tự động theo công thức, không nhập độc lập mà không xác minh.
+9. Ràng buộc và giả định
+- Chỉ áp dụng công thức trên cho kết quả nguyên dương trong phạm vi dữ liệu câu hỏi của tính năng.
+- Bộ dữ liệu chia phải bảo đảm phép chia hợp lệ và có thương nguyên; nếu mở rộng sang phép chia có dư hoặc kết quả thập phân, cần ADR cập nhật.
+- correct_answer hiện là chuỗi và logic hiện tại so sánh chuỗi chính xác. Nếu mã hóa dữ liệu của type estimate bằng JSON trong trường này, server phải parse/validate JSON an toàn và chỉ dùng ở server.
+- Tên endpoint, schema DB, vị trí file test và công cụ test phải đối chiếu mã nguồn thực tế trước khi chốt triển khai.
+- Không tuyên bố một yêu cầu đã triển khai chỉ vì nó đã được mô tả trong tài liệu.
+10. Ma trận truy vết yêu cầu
+Mã	Nội dung	Tài liệu thiết kế	Kiểm thử
+B-01	Tích hợp vào luồng học tập	DEC-01	TC-01, TC-02
+B-02	Ít nhất 12 fixture	DEC-02	TC-03
+B-03	Quy tắc ước lượng tất định	DEC-03	TC-04 đến TC-10
+B-04	Không lộ đáp án trước khi nộp	DEC-04	TC-18
+B-05	Server lưu kết quả	DEC-05	TC-19, TC-20
+B-06	Phản hồi/chấm hai thành phần	DEC-03, DEC-05	TC-11 đến TC-15
+B-07	Không sửa xác thực/session/tài khoản mẫu	DEC-07	TC-24
+B-08	Kiểm thử chức năng và biên	DEC-08	TC-04 đến TC-24
+B-09	Có npm test	DEC-08	TC-22
+B-10	CI chạy test trên PR	DEC-08	TC-23
+B-11	Không có dữ liệu cá nhân thật/secret	DEC-07	TC-24
+B-12	Khả năng truy cập và thông báo lỗi	DEC-01, DEC-08	TC-16, TC-17, TC-21
+
+
+11. Điều kiện nghiệm thu tài liệu và triển khai
+Một yêu cầu chỉ được đánh dấu “Hoàn thành” khi có bằng chứng tương ứng: mã nguồn, test chạy được, kết quả kiểm thử hoặc diff xác minh. Các nội dung mới chỉ được mô tả trong tài liệu phải ghi trạng thái “Đã đặc tả – chưa xác minh triển khai”.
+
+Tính năng được nghiệm thu khi:
+1. Đáp ứng các tiêu chí FR-01 đến FR-12 và NFR-01 đến NFR-06.
+2. Có ít nhất 12 fixture thực tế, dùng được trong test.
+3. Server chấm điểm và lưu kết quả.
+4. API không lộ đáp án trước khi nộp.
+5. npm test chạy đạt.
+6. CI chạy đạt trên Pull Request.
+7. Không vi phạm ràng buộc bảo mật, quyền riêng tư và phạm vi.
+8. Có hướng dẫn chạy/test và báo cáo kết quả kiểm thử.
+12. Tài liệu tham chiếu
+- docs/architecture-reference.md – tài liệu kiến trúc chuẩn của Track B.
+- README.md – cách cài đặt, chạy và mô tả starter.
+- DECISIONS.md – quyết định thiết kế.
+- TEST_PLAN.md – kế hoạch kiểm thử.
+- Đề thi và rubric chính thức KTPMUD Hack Marathon 2026 do giảng viên cung cấp.
