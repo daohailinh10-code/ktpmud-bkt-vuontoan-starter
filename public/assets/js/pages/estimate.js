@@ -55,7 +55,7 @@ async function submitEstimateAnswers() {
   const answers = {};
   for (const question of estimateQuestions) answers[question.id] = {};
   for (const input of inputs) {
-    if (input.value.trim() === '' || !/^\\d+$/.test(input.value.trim())) {
+    if (input.value.trim() === '' || !/^[0-9]+$/.test(input.value.trim())) {
       input.focus();
       alert('Em hãy nhập đầy đủ hai đáp án là số nguyên không âm cho mỗi câu nhé!');
       return;
@@ -77,7 +77,24 @@ async function submitEstimateAnswers() {
     detail.textContent = 'Đúng hoàn toàn ' + data.correctCount + '/' + data.totalCount + ' câu. Điểm ước lượng và tính chính xác đã được cộng riêng theo tỷ lệ 50% – 50%.';
     const stars = document.createElement('p');
     stars.textContent = 'Số sao nhận thêm: ' + data.starsEarned + '. Tổng sao hiện tại: ' + data.totalStars + '.';
-    summary.append(title, detail, stars);
+    const feedbackList = document.createElement('ul');
+    feedbackList.className = 'mt-4 space-y-2';
+    data.detail.forEach((item, index) => {
+      const row = document.createElement('li');
+      row.className = 'rounded-xl bg-surface-container-low p-3';
+      if (item.estimateCorrect !== undefined) {
+        row.textContent = 'Câu ' + (index + 1) + ': Ước lượng ' +
+          (item.estimateCorrect ? 'hợp lý' : 'chưa hợp lý') + '; tính chính xác ' +
+          (item.exactCorrect ? 'đúng' : 'chưa đúng') + '. Điểm: ' +
+          item.earnedPoints + '/' + item.maxPoints +
+          '. Khoảng hợp lý: ' + item.correctAnswer.lower + '–' + item.correctAnswer.upper +
+          '; kết quả chính xác: ' + item.correctAnswer.exact + '.';
+      } else {
+        row.textContent = 'Câu ' + (index + 1) + ': ' + (item.correct ? 'Đúng' : 'Chưa đúng') + '.';
+      }
+      feedbackList.appendChild(row);
+    });
+    summary.append(title, detail, stars, feedbackList);
     resultBox.replaceChildren(summary);
     resultBox.classList.remove('hidden');
     resultBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
