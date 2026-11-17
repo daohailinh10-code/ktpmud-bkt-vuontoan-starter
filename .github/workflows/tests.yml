@@ -2,7 +2,7 @@ name: tests
 on:
   pull_request:
   push:
-    branches: [main]
+    branches: [main, 'submit/**']
 jobs:
   test:
     runs-on: ubuntu-latest
